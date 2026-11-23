@@ -6,6 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -31,10 +32,13 @@ try {
 if (!getApps().length) initializeApp({ credential: cert(serviceAccount) });
 
 const firebaseAuth = getAuth();
+const db = getFirestore();
+const auditCollection = db.collection("email_audit_logs");
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",").map((origin) => origin.trim()).filter(Boolean);
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({
   origin(origin, callback) {
@@ -72,8 +76,29 @@ function requireMailAccess(req, res, next) {
   return res.status(403).json({ error: "Your account is signed in but has not been granted official mailbox access." });
 }
 function requireAdmin(req, res, next) {
-  if (req.user?.admin === true || req.user?.role === "super_admin") return next();
-  return res.status(403).json({ error: "Administrator permission required." });
+  const isDesignatedAdmin = String(req.user?.email || "").toLowerCase() === "admin@codebihin.in";
+  if (isDesignatedAdmin && (req.user?.admin === true || req.user?.role === "super_admin")) return next();
+  return res.status(403).json({ error: "Only admin@codebihin.in can manage CodeBihin Email." });
+}
+
+function requestIp(req) {
+  return String(req.ip || req.socket?.remoteAddress || "unknown").slice(0, 100);
+}
+async function auditEvent(req, action, details = {}, status = "success", actor = req.user || {}) {
+  try {
+    await auditCollection.add({
+      timestamp: FieldValue.serverTimestamp(),
+      timestampUtc: new Date().toISOString(),
+      actorEmail: String(actor.email || "unknown").toLowerCase(),
+      actorUid: actor.uid || null,
+      ip: requestIp(req),
+      action,
+      status,
+      details
+    });
+  } catch (error) {
+    console.error("Audit write failed:", error.message);
+  }
 }
 
 async function hostingerRequest(path, options = {}) {
@@ -139,6 +164,130 @@ app.get("/api/me", requireFirebaseUser, (req, res) => res.json({
   admin: req.user.admin === true
 }));
 app.get("/api/admin/status", requireFirebaseUser, requireAdmin, (_req, res) => res.json({ authorized: true }));
+
+// Login and logout activity. Failed login reports are informational and never grant access.
+app.post("/api/audit/login-failed", async (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase().slice(0, 254);
+  if (!email || !email.includes("@")) return res.status(400).json({ error: "A valid email is required." });
+  await auditEvent(req, "login_failed", { attemptedEmail: email }, "failure", { email, uid: null });
+  res.json({ recorded: true });
+});
+app.post("/api/audit/login-success", requireFirebaseUser, async (req, res) => {
+  await auditEvent(req, "login_success", { email: req.user.email || null });
+  res.json({ recorded: true });
+});
+app.post("/api/audit/logout", requireFirebaseUser, async (req, res) => {
+  await auditEvent(req, "logout", {});
+  res.json({ recorded: true });
+});
+
+// Administrator-only account directory and provisioning.
+app.get("/api/admin/users", requireFirebaseUser, requireAdmin, async (_req, res) => {
+  try {
+    const users = [];
+    let pageToken;
+    do {
+      const page = await firebaseAuth.listUsers(1000, pageToken);
+      users.push(...page.users.map((user) => ({
+        uid: user.uid,
+        email: user.email || "",
+        displayName: user.displayName || "",
+        disabled: user.disabled,
+        mailAccess: user.customClaims?.mailAccess === true || user.customClaims?.admin === true || user.customClaims?.role === "super_admin",
+        role: user.customClaims?.role || (user.customClaims?.admin ? "super_admin" : "employee"),
+        createdAt: user.metadata?.creationTime || null,
+        lastSignInAt: user.metadata?.lastSignInTime || null
+      })));
+      pageToken = page.pageToken;
+    } while (pageToken);
+    users.sort((a, b) => a.email.localeCompare(b.email));
+    res.json({ users });
+  } catch (error) {
+    console.error("Admin user listing failed:", error.code || error.message);
+    res.status(500).json({ error: "Could not load user accounts." });
+  }
+});
+
+app.post("/api/admin/users", requireFirebaseUser, requireAdmin, async (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  const password = req.body?.password;
+  const displayName = String(req.body?.displayName || "").trim().slice(0, 100);
+  const mailAccess = req.body?.mailAccess !== false;
+  if (!isCodeBihinEmail(email)) return res.status(400).json({ error: "Use a CodeBihin email address." });
+  if (email === "admin@codebihin.in") return res.status(400).json({ error: "The designated administrator account cannot be recreated here." });
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) return res.status(400).json({ error: "Set a temporary password with at least 8 characters." });
+  if (!displayName) return res.status(400).json({ error: "Enter the employee name." });
+  try {
+    const user = await firebaseAuth.createUser({ email, password, displayName, emailVerified: false });
+    await firebaseAuth.setCustomUserClaims(user.uid, { mailAccess, role: "employee" });
+    await auditEvent(req, "account_created", { targetEmail: email, targetUid: user.uid, displayName, mailAccess });
+    res.status(201).json({ success: true, user: { uid: user.uid, email, displayName, mailAccess, role: "employee" } });
+  } catch (error) {
+    console.error("Admin account creation failed:", error.code || error.message);
+    const conflict = error.code === "auth/email-already-exists";
+    res.status(conflict ? 409 : 500).json({ error: conflict ? "An account with this email already exists." : "Could not create the account." });
+  }
+});
+
+app.post("/api/admin/users/:uid/access", requireFirebaseUser, requireAdmin, async (req, res) => {
+  const uid = String(req.params.uid || "");
+  const enabled = req.body?.enabled;
+  if (!uid || typeof enabled !== "boolean") return res.status(400).json({ error: "A user ID and access setting are required." });
+  try {
+    const target = await firebaseAuth.getUser(uid);
+    if (String(target.email || "").toLowerCase() === "admin@codebihin.in") return res.status(400).json({ error: "Administrator access cannot be changed here." });
+    const oldClaims = target.customClaims || {};
+    await firebaseAuth.setCustomUserClaims(uid, { ...oldClaims, mailAccess: enabled, role: "employee" });
+    // Force existing sessions to refresh their ID tokens so revoked access takes effect.
+    await firebaseAuth.revokeRefreshTokens(uid);
+    await auditEvent(req, enabled ? "mail_access_granted" : "mail_access_revoked", { targetEmail: target.email || null, targetUid: uid });
+    res.json({ success: true, mailAccess: enabled });
+  } catch (error) {
+    console.error("Mailbox access update failed:", error.code || error.message);
+    res.status(500).json({ error: "Could not update mailbox access." });
+  }
+});
+
+app.post("/api/admin/users/:uid/disable", requireFirebaseUser, requireAdmin, async (req, res) => {
+  const uid = String(req.params.uid || "");
+  const disabled = req.body?.disabled;
+  if (!uid || typeof disabled !== "boolean") return res.status(400).json({ error: "A user ID and account status are required." });
+  try {
+    const target = await firebaseAuth.getUser(uid);
+    if (String(target.email || "").toLowerCase() === "admin@codebihin.in") return res.status(400).json({ error: "The administrator account cannot be disabled here." });
+    await firebaseAuth.updateUser(uid, { disabled });
+    if (disabled) await firebaseAuth.revokeRefreshTokens(uid);
+    await auditEvent(req, disabled ? "account_disabled" : "account_enabled", { targetEmail: target.email || null, targetUid: uid });
+    res.json({ success: true, disabled });
+  } catch (error) {
+    console.error("Account status update failed:", error.code || error.message);
+    res.status(500).json({ error: "Could not update account status." });
+  }
+});
+
+app.get("/api/admin/audit", requireFirebaseUser, requireAdmin, async (req, res) => {
+  const limit = Math.max(1, Math.min(200, Number.parseInt(req.query.limit || "100", 10) || 100));
+  try {
+    const snapshot = await auditCollection.orderBy("timestamp", "desc").limit(limit).get();
+    const logs = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        timestamp: data.timestamp?.toDate?.().toISOString() || data.timestampUtc || null,
+        actorEmail: data.actorEmail || "",
+        actorUid: data.actorUid || "",
+        ip: data.ip || "",
+        action: data.action || "",
+        status: data.status || "",
+        details: data.details || {}
+      };
+    });
+    res.json({ logs });
+  } catch (error) {
+    console.error("Audit listing failed:", error.message);
+    res.status(500).json({ error: "Could not load audit history. Check Firestore access and indexes." });
+  }
+});
 
 app.get("/api/mail/identity", requireFirebaseUser, requireMailAccess, (_req, res) => {
   res.json({ mailbox: MAILBOX });
@@ -221,13 +370,17 @@ app.post("/api/mail/send", requireFirebaseUser, requireMailAccess, async (req, r
   }
   try {
     const mailboxId = await getMailboxResourceId();
-    await hostingerRequest(`/api/v1/mailboxes/${encodeURIComponent(mailboxId)}/send`, {
+    const result = await hostingerRequest(`/api/v1/mailboxes/${encodeURIComponent(mailboxId)}/send`, {
       method: "POST",
       body: { to: recipients, displayName: "CodeBihin Official", subject, text }
     });
+    await auditEvent(req, "email_send", { from: MAILBOX, recipients, subject, providerStatus: result.status });
     console.info("Shared mailbox message sent by official:", req.user.email || req.user.uid);
     res.json({ success: true, from: MAILBOX });
-  } catch (error) { hostingerError(res, error, "Hostinger send"); }
+  } catch (error) {
+    await auditEvent(req, "email_send", { from: MAILBOX, recipients, subject, errorCode: error.code || "SEND_FAILED" }, "failure");
+    hostingerError(res, error, "Hostinger send");
+  }
 });
 
 // One-time bootstrap for the first administrator. Remove BOOTSTRAP_SECRET after use.

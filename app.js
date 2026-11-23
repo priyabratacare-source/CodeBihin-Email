@@ -33,7 +33,13 @@ loginForm.addEventListener("submit", async (event) => {
 
   const password = passwordInput.value;
 
-  if (!email.endsWith("@codebihin.in")) {
+  const domain = email.split("@")[1];
+
+const allowedDomain =
+  domain === "codebihin.in" ||
+  domain.endsWith(".codebihin.in");
+
+if (!allowedDomain) {
     showMessage("Use your @codebihin.in email address.");
     return;
   }

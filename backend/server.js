@@ -80,7 +80,7 @@ function makeImapClient() {
     host: process.env.HOSTINGER_IMAP_HOST || "imap.hostinger.com",
     port: Number(process.env.HOSTINGER_IMAP_PORT || 993),
     secure: true,
-    auth: { user: MAILBOX, pass: requiredEnv("HOSTINGER_APP_PASSWORD") },
+    auth: { user: MAILBOX, pass: requiredEnv("5c069ddb857248905cdcac82c71d4a8a1804e724a603f2b4f3e0d95ca2857758") },
     logger: false
   });
 }

@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123b75">
+  <meta name="description" content="CodeBihin Email - Independent email platform">
+  <title>CodeBihin Email</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <main class="page">
+    <nav class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-icon">C</span>
+        <span>CodeBihin <small>Email</small></span>
+      </a>
+      <span class="secure"><span class="dot"></span> Independent email platform</span>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">YOUR EMAIL. YOUR IDENTITY.</span>
+        <h1>Communication,<br><span>under your control.</span></h1>
+        <p>
+          A dedicated email workspace for CodeBihin employees.
+          Sign in to access your professional mailbox.
+        </p>
+        <div class="features">
+          <div><span>✓</span> Professional email identity</div>
+          <div><span>✓</span> Employee-based access</div>
+          <div><span>✓</span> One unified inbox</div>
+        </div>
+      </div>
+
+      <section class="login-card">
+        <div class="card-logo">C</div>
+        <h2>Welcome back</h2>
+        <p class="muted">Sign in to your CodeBihin account</p>
+
+        <form id="loginForm">
+          <label for="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            placeholder="name@codebihin.in"
+            autocomplete="username"
+            required
+          >
+
+          <label for="password">Password</label>
+          <div class="password-wrap">
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" id="togglePassword" class="show-password">
+              Show
+            </button>
+          </div>
+
+          <button type="submit" class="login-button" id="loginButton">
+            Sign in <span>→</span>
+          </button>
+          <p id="message" class="message" aria-live="polite"></p>
+        </form>
+
+        <div class="help">
+          Need access? Contact your CodeBihin administrator.
+        </div>
+      </section>
+    </section>
+
+    <footer>
+      <span>© <span id="year"></span> CodeBihin Email</span>
+      <span>Built for secure communication</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

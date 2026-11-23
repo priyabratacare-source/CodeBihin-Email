@@ -1,92 +1,72 @@
-# CodeBihin Email — Hostinger-based free-first launch
+# CodeBihin Email — shared Hostinger mailbox
 
-## Agreed architecture
+## Agreed model
 
-Keep the domain registration and DNS at Hostinger. Keep Hostinger Email as the active mail provider.
+CodeBihin Email is an official webmail portal. It is not an employee mailbox provisioning system.
 
-- GitHub Pages: static CodeBihin Email portal.
-- Firebase Authentication: employee/admin sign-in to the portal.
-- Firestore: employee and role records, protected by the existing restrictive rules.
-- Hostinger Email: actual mailboxes, aliases and incoming message handling.
-- Hostinger Forwarders: optionally forward selected mailbox messages to verified external destinations such as Gmail.
+- Each official signs in with their own Firebase Authentication account.
+- Officials who have the `mailAccess: true` custom claim can access one shared Hostinger mailbox: `admin@codebihin.in`.
+- The backend connects to Hostinger IMAP and SMTP using one app password stored only in backend secrets.
+- The webmail frontend is hosted on GitHub Pages.
+- The Node.js backend must be deployed separately.
+- Hostinger remains the DNS provider and Hostinger Email remains the receiving service.
 
-This setup does not require Cloudflare DNS or a VPS.
+## Hostinger connection settings
 
-## What this release can do
+Confirm these in the Hostinger panel for your own email plan before production:
 
-- Receive mail at real Hostinger mailboxes on `@codebihin.in`.
-- Use Hostinger aliases for additional addresses delivered into an existing mailbox, subject to the plan's alias limits.
-- Forward messages from a Hostinger mailbox to a verified external inbox, subject to plan limits.
-- Read and manage the original messages through Hostinger Webmail or a supported mail app.
+- IMAP: `imap.hostinger.com`, port `993`, SSL/TLS
+- SMTP: `smtp.hostinger.com`, port `465`, SSL/TLS
+- Mailbox username: `admin@codebihin.in`
+- Password: an app password generated for this mailbox, stored as `HOSTINGER_APP_PASSWORD` on the backend host only
 
-## What it does not do
+Official Hostinger documentation:
+- [Create an app password](https://www.hostinger.com/support/how-to-create-an-app-password-for-hostinger-email/)
+- [Hostinger mailbox management](https://www.hostinger.com/support/1583217-how-to-create-and-manage-mailboxes-for-hostinger-email/)
 
-- Firebase accounts do not automatically create Hostinger mailboxes.
-- The GitHub Pages portal is not an IMAP inbox and does not display messages.
-- A forwarder does not send mail as the original CodeBihin address.
-- Replies from the destination Gmail normally use the Gmail address, unless the sender separately configures a supported send-as service.
-- Forwarding is not guaranteed for every sender. DMARC policies can cause forwarded messages to be rejected.
+## Granting an official access
 
-## Important: preserve current mail DNS
+Create an individual Firebase Authentication account for the official. In the backend environment, use:
 
-Do not change nameservers or MX records. Do not add Cloudflare Email Routing MX records.
+```bash
+npm run mail-access -- official@codebihin.in grant
+```
 
-Hostinger's published Hostinger Email MX records are:
-- Priority 5: `mx1.hostinger.com`
-- Priority 10: `mx2.hostinger.com`
+To revoke access:
 
-Use the values currently shown in your own Hostinger hPanel as the source of truth. If these are already present and email is working, leave them unchanged.
+```bash
+npm run mail-access -- official@codebihin.in revoke
+```
 
-Hostinger also manages the domain's SPF and DKIM setup. Do not add a second SPF TXT record. If you need to update authentication, use the exact records shown by Hostinger for your account.
+The official must sign out and sign in again after a claim change. A valid CodeBihin email domain alone does not grant access.
 
-## Set up an address using an alias
+## Security
 
-Use this when a new address should deliver into an existing mailbox:
+- Never place the Hostinger app password in browser JavaScript, GitHub, or Firebase client configuration.
+- Never give the shared mailbox app password to individual officials.
+- Each official gets their own Firebase login; backend checks the verified Firebase token and mailbox-access claim.
+- The backend must run over HTTPS and store secrets as private environment variables.
+- The shared mailbox grants full read/send access to every official who has been authorised. This first version does not provide per-folder or per-message permissions.
 
-1. Sign in to Hostinger hPanel.
-2. Open **Emails** and select **Manage** beside the `codebihin.in` email plan.
-3. Open **Mailboxes** and choose the mailbox that should receive the messages.
-4. Find **Aliases** (or the alias management section for that mailbox).
-5. Add the required alias, for example `support@codebihin.in`, linked to the intended mailbox.
-6. Save and test by sending a message from an unrelated external account.
+## Current feature scope
 
-An alias is an additional address for an existing mailbox; it is not a separate mailbox with its own password or storage.
+Implemented in the repository:
+- Official login page
+- Shared webmail layout
+- Folder and message listing
+- Read message text
+- Compose and send from the shared address
+- Reply action
+- Per-official mailbox access claim
 
-## Set up a forwarder to Gmail
+Not yet implemented:
+- Attachments
+- Rich HTML message rendering
+- Delete, archive, move, spam controls
+- Draft synchronisation
+- Realtime push notifications
+- Persistent audit dashboard
 
-Use this when a real Hostinger mailbox should also forward incoming messages to a destination inbox:
+## Deployment status
 
-1. In hPanel, open **Emails → Manage → Forwarders** for `codebihin.in`.
-2. Select **Create forwarder**.
-3. Choose the existing Hostinger mailbox as the source.
-4. Enter the destination Gmail address.
-5. Keep **Save copies of forwarded emails** enabled initially, so the original mailbox retains a copy.
-6. Create the forwarder.
-7. Open the destination inbox and complete Hostinger's verification email.
-8. Send a test message and check both the Hostinger mailbox and Gmail Inbox/Spam.
-
-Hostinger's forwarder feature only forwards messages received by the selected source mailbox. It does not forward mail sent out by that mailbox.
-
-## Recommended initial addresses
-
-Start with a small number of functional addresses, each mapped to an existing mailbox or alias:
-- `admin@codebihin.in`
-- `support@codebihin.in`
-- `careers@codebihin.in`
-
-Confirm which mailbox receives each alias before publishing the address. The number of mailboxes, aliases, filters and forwarders depends on the active Hostinger plan.
-
-## Delivery caveats
-
-Forwarding may fail for some senders because strict DMARC policies can reject forwarded messages. If an important sender's mail is missing, check the original Hostinger mailbox first, then Hostinger's forwarding status and destination Spam folder. For reliability, use the original Hostinger mailbox via Webmail or IMAP as the primary inbox.
-
-## Official Hostinger documentation
-
-- [Set up a Hostinger Email forwarder](https://www.hostinger.com/support/1583221-how-to-set-up-a-forwarder-for-hostinger-email/)
-- [Email forwarding limitations and alternatives](https://www.hostinger.com/support/email-forwarding-known-limitations-and-alternatives/)
-- [Catch-all, forwarder and alias differences](https://www.hostinger.com/support/4469114-differences-and-applications-of-catch-all-forwarder-and-email-alias-at-hostinger/)
-- [Hostinger Email MX records](https://www.hostinger.com/support/4407237-hostinger-email-mx-records/)
-
-## Current application status
-
-The portal login authenticates provisioned CodeBihin identities with Firebase. It does not provision a Hostinger mailbox or expose mail contents. Mailbox/alias/forwarder administration is performed in Hostinger hPanel for this first release.
+GitHub Pages hosts only the frontend. The Node.js backend is not yet deployed. Set `API_BASE_URL` in `api-config.js` only after the backend has an HTTPS URL. Keep Hostinger DNS and MX records unchanged; no Cloudflare nameserver migration is required for this design.

@@ -1,68 +1,92 @@
-# CodeBihin Email — Free inbound forwarding launch
+# CodeBihin Email — Hostinger-based free-first launch
 
-## What this first release does
+## Agreed architecture
 
-This release uses Cloudflare Email Routing to accept incoming messages for configured addresses at `@codebihin.in` and forward them to verified existing inboxes such as Gmail.
+Keep the domain registration and DNS at Hostinger. Keep Hostinger Email as the active mail provider.
 
-It does **not** provide:
-- A mailbox or inbox hosted by CodeBihin
-- IMAP/POP access
-- Sending or replying as `@codebihin.in`
-- Unlimited storage or independent employee mailboxes
+- GitHub Pages: static CodeBihin Email portal.
+- Firebase Authentication: employee/admin sign-in to the portal.
+- Firestore: employee and role records, protected by the existing restrictive rules.
+- Hostinger Email: actual mailboxes, aliases and incoming message handling.
+- Hostinger Forwarders: optionally forward selected mailbox messages to verified external destinations such as Gmail.
 
-When an employee replies to a forwarded message, the reply comes from their destination Gmail address, not their CodeBihin address.
+This setup does not require Cloudflare DNS or a VPS.
 
-## Services
+## What this release can do
 
-- GitHub Pages: hosts the static CodeBihin Email portal.
-- Firebase Authentication: authenticates provisioned CodeBihin users.
-- Firestore: stores employee/role data under restrictive rules.
-- Cloudflare Email Routing: receives and forwards incoming mail.
-- Existing Gmail accounts: receive the forwarded messages.
+- Receive mail at real Hostinger mailboxes on `@codebihin.in`.
+- Use Hostinger aliases for additional addresses delivered into an existing mailbox, subject to the plan's alias limits.
+- Forward messages from a Hostinger mailbox to a verified external inbox, subject to plan limits.
+- Read and manage the original messages through Hostinger Webmail or a supported mail app.
 
-## Important DNS requirement
+## What it does not do
 
-Cloudflare Email Routing requires the domain to use Cloudflare DNS. The domain registrar can remain Hostinger, but its authoritative nameservers must be changed to the two nameservers Cloudflare assigns.
+- Firebase accounts do not automatically create Hostinger mailboxes.
+- The GitHub Pages portal is not an IMAP inbox and does not display messages.
+- A forwarder does not send mail as the original CodeBihin address.
+- Replies from the destination Gmail normally use the Gmail address, unless the sender separately configures a supported send-as service.
+- Forwarding is not guaranteed for every sender. DMARC policies can cause forwarded messages to be rejected.
 
-**Do not change nameservers or MX records until the current DNS zone has been copied and reviewed.** Record all existing A, AAAA, CNAME, MX, TXT, CAA, and SRV records first. A nameserver migration can break websites, verification records, or other subdomains if records are not copied correctly.
+## Important: preserve current mail DNS
 
-Also check whether any existing service currently receives mail for `codebihin.in`. Cloudflare Email Routing uses the domain's MX records; replacing existing MX records can interrupt that service. Do not enable routing until this conflict is understood.
+Do not change nameservers or MX records. Do not add Cloudflare Email Routing MX records.
 
-## Setup sequence
+Hostinger's published Hostinger Email MX records are:
+- Priority 5: `mx1.hostinger.com`
+- Priority 10: `mx2.hostinger.com`
 
-1. Create a free Cloudflare account and add `codebihin.in`.
-2. Let Cloudflare scan/import DNS records. Compare the imported zone against Hostinger's live DNS zone and manually add anything missing.
-3. Keep all website records, including the GitHub Pages custom-domain record for `tool.codebihin.in`, intact. Do not proxy mail-related records.
-4. Only after the DNS inventory is verified, change the domain's nameservers at Hostinger to the exact pair Cloudflare provides.
-5. Wait until Cloudflare reports the zone as Active.
-6. In Cloudflare, open **Compute → Email Service → Email Routing** and onboard `codebihin.in`.
-7. Add a destination address (for example, an existing Gmail inbox) and complete its verification email.
-8. Create explicit routing rules, such as:
-   - `admin@codebihin.in` → verified administrator Gmail
-   - `support@codebihin.in` → verified support Gmail
-   - `careers@codebihin.in` → verified HR Gmail
-9. Test each address by sending from a separate external email account. Check Inbox and Spam.
-10. Keep a written list of each alias and its destination. Do not create catch-all forwarding until spam and ownership risks have been considered.
+Use the values currently shown in your own Hostinger hPanel as the source of truth. If these are already present and email is working, leave them unchanged.
 
-Cloudflare may add MX and TXT records during onboarding. Review them before accepting changes. Do not manually invent MX, SPF, or DKIM values; use the values Cloudflare displays for this zone.
+Hostinger also manages the domain's SPF and DKIM setup. Do not add a second SPF TXT record. If you need to update authentication, use the exact records shown by Hostinger for your account.
 
-## Security and operations
+## Set up an address using an alias
 
-- Verify every destination address before enabling a routing rule.
-- Use one destination per alias unless a Worker-based multi-destination workflow is deliberately implemented.
-- Do not publish employee destination Gmail addresses in the public website.
-- Do not store passwords or Firebase service-account keys in GitHub.
-- Keep Firebase Authentication account provisioning restricted to administrators.
-- Email forwarding does not guarantee delivery; check spam folders and routing logs.
-- Forwarding can be affected by recipient-provider spam and DMARC policies.
+Use this when a new address should deliver into an existing mailbox:
 
-## Current app status
+1. Sign in to Hostinger hPanel.
+2. Open **Emails** and select **Manage** beside the `codebihin.in` email plan.
+3. Open **Mailboxes** and choose the mailbox that should receive the messages.
+4. Find **Aliases** (or the alias management section for that mailbox).
+5. Add the required alias, for example `support@codebihin.in`, linked to the intended mailbox.
+6. Save and test by sending a message from an unrelated external account.
 
-The GitHub Pages portal and Firebase sign-in are separate from Cloudflare's mail routing. Signing into the portal does not create a mailbox or automatically create a forwarding rule. Alias creation and destination verification are performed in Cloudflare in this initial release.
+An alias is an additional address for an existing mailbox; it is not a separate mailbox with its own password or storage.
 
-## Official documentation
+## Set up a forwarder to Gmail
 
-- [Cloudflare: Route emails](https://developers.cloudflare.com/email-service/get-started/route-emails/)
-- [Cloudflare: Domain configuration and DNS records](https://developers.cloudflare.com/email-service/configuration/domains/)
-- [Cloudflare: Routing rules and destination addresses](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/)
-- [Cloudflare: Email service limitations](https://developers.cloudflare.com/email-service/platform/limits/)
+Use this when a real Hostinger mailbox should also forward incoming messages to a destination inbox:
+
+1. In hPanel, open **Emails → Manage → Forwarders** for `codebihin.in`.
+2. Select **Create forwarder**.
+3. Choose the existing Hostinger mailbox as the source.
+4. Enter the destination Gmail address.
+5. Keep **Save copies of forwarded emails** enabled initially, so the original mailbox retains a copy.
+6. Create the forwarder.
+7. Open the destination inbox and complete Hostinger's verification email.
+8. Send a test message and check both the Hostinger mailbox and Gmail Inbox/Spam.
+
+Hostinger's forwarder feature only forwards messages received by the selected source mailbox. It does not forward mail sent out by that mailbox.
+
+## Recommended initial addresses
+
+Start with a small number of functional addresses, each mapped to an existing mailbox or alias:
+- `admin@codebihin.in`
+- `support@codebihin.in`
+- `careers@codebihin.in`
+
+Confirm which mailbox receives each alias before publishing the address. The number of mailboxes, aliases, filters and forwarders depends on the active Hostinger plan.
+
+## Delivery caveats
+
+Forwarding may fail for some senders because strict DMARC policies can reject forwarded messages. If an important sender's mail is missing, check the original Hostinger mailbox first, then Hostinger's forwarding status and destination Spam folder. For reliability, use the original Hostinger mailbox via Webmail or IMAP as the primary inbox.
+
+## Official Hostinger documentation
+
+- [Set up a Hostinger Email forwarder](https://www.hostinger.com/support/1583221-how-to-set-up-a-forwarder-for-hostinger-email/)
+- [Email forwarding limitations and alternatives](https://www.hostinger.com/support/email-forwarding-known-limitations-and-alternatives/)
+- [Catch-all, forwarder and alias differences](https://www.hostinger.com/support/4469114-differences-and-applications-of-catch-all-forwarder-and-email-alias-at-hostinger/)
+- [Hostinger Email MX records](https://www.hostinger.com/support/4407237-hostinger-email-mx-records/)
+
+## Current application status
+
+The portal login authenticates provisioned CodeBihin identities with Firebase. It does not provision a Hostinger mailbox or expose mail contents. Mailbox/alias/forwarder administration is performed in Hostinger hPanel for this first release.

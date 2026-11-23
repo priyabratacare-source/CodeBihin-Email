@@ -1,4 +1,5 @@
 import { auth } from "./firebase-config.js";
+import { API_BASE_URL } from "./api-config.js";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 const emailInput = document.getElementById("email");
@@ -36,9 +37,11 @@ if (loginForm) {
     loginButton.textContent = "Signing in…";
     showMessage("Verifying your official account…");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      try { const token = await credential.user.getIdToken(); await fetch(API_BASE_URL.replace(/\\/$/, "") + "/api/audit/login-success", { method: "POST", headers: { Authorization: "Bearer " + token } }); } catch {}
       window.location.replace("./webmail.html");
     } catch (error) {
+      try { await fetch(API_BASE_URL.replace(/\\/$/, "") + "/api/audit/login-failed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }); } catch {}
       const errors = {
         "auth/invalid-email": "Invalid email address.",
         "auth/user-not-found": "Account not found.",

@@ -55,7 +55,7 @@ function isCodeBihinEmail(email) {
 }
 
 async function requireFirebaseUser(req, res, next) {
-  const match = (req.headers.authorization || "").match(/^Bearer\\s+(.+)$/i);
+  const match = (req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
   if (!match) return res.status(401).json({ error: "A Firebase ID token is required." });
   try {
     const decoded = await firebaseAuth.verifyIdToken(match[1], true);
@@ -213,7 +213,7 @@ app.post("/api/mail/send", requireFirebaseUser, requireMailAccess, async (req, r
   const { to, subject = "", text = "" } = req.body || {};
   const recipients = typeof to === "string" ? to.split(",").map((item) => item.trim()).filter(Boolean)
     : Array.isArray(to) ? to : [];
-  if (!recipients.length || recipients.length > 10 || recipients.some((email) => typeof email !== "string" || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))) {
+  if (!recipients.length || recipients.length > 10 || recipients.some((email) => typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
     return res.status(400).json({ error: "Enter between 1 and 10 valid recipient email addresses." });
   }
   if (typeof subject !== "string" || subject.length > 200 || typeof text !== "string" || !text.trim() || text.length > 50000) {

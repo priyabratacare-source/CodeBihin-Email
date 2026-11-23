@@ -38,10 +38,10 @@ if (loginForm) {
     showMessage("Verifying your official account…");
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      try { const token = await credential.user.getIdToken(); await fetch(API_BASE_URL.replace(/\\/$/, "") + "/api/audit/login-success", { method: "POST", headers: { Authorization: "Bearer " + token } }); } catch {}
+      try { const token = await credential.user.getIdToken(); await fetch(API_BASE_URL.replace(/\/$/, "") + "/api/audit/login-success", { method: "POST", headers: { Authorization: "Bearer " + token } }); } catch {}
       window.location.replace("./webmail.html");
     } catch (error) {
-      try { await fetch(API_BASE_URL.replace(/\\/$/, "") + "/api/audit/login-failed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }); } catch {}
+      try { await fetch(API_BASE_URL.replace(/\/$/, "") + "/api/audit/login-failed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }); } catch {}
       const errors = {
         "auth/invalid-email": "Invalid email address.",
         "auth/user-not-found": "Account not found.",

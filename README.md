@@ -1,25 +1,27 @@
 # CodeBihin Email
 
-CodeBihin Email is being developed in stages.
+CodeBihin Email is being developed in stages, using Hostinger Email for the initial mail service.
 
-## Current free launch
+## Current free-first setup
 
-The first release uses:
-- GitHub Pages for the web portal
-- Firebase Authentication for CodeBihin account sign-in
-- Firestore for employee and role data
-- Cloudflare Email Routing for incoming email forwarding to verified existing inboxes
+- GitHub Pages: web portal
+- Firebase Authentication: CodeBihin employee/admin portal sign-in
+- Firestore: employee and role records
+- Hostinger Email: actual mailboxes and incoming email
+- Hostinger aliases and forwarders: additional addresses and optional Gmail forwarding
 
-**This is forwarding, not a hosted mailbox.** The first release does not provide IMAP/POP, mailbox storage, or the ability to send/reply from a `@codebihin.in` address. Replies from a forwarded Gmail message use the Gmail sender address.
+**DNS stays at Hostinger.** Do not switch nameservers or MX records to Cloudflare. Do not add Cloudflare Email Routing records while Hostinger Email is receiving mail.
+
+This is not a standalone mailbox platform yet. The portal login does not create a Hostinger mailbox or display messages. Use Hostinger Webmail or a supported mail app to read the actual mailbox.
 
 ## Setup guide
 
-Read [docs/FREE-INBOUND-ROUTING.md](docs/FREE-INBOUND-ROUTING.md) before changing DNS. Cloudflare Email Routing requires Cloudflare DNS. Copy and verify the existing Hostinger DNS zone before changing nameservers; an incorrect migration can interrupt websites or existing email.
+Read [docs/FREE-INBOUND-ROUTING.md](docs/FREE-INBOUND-ROUTING.md) for safe alias and forwarder setup without changing DNS.
 
-## Existing backend
+## Backend
 
-The `backend/` folder contains an API foundation for a future hosted service. It is not required for Cloudflare's basic forwarding and is not currently deployed. Never commit service-account credentials or secrets.
+The `backend/` folder is a foundation for a future API. It is not deployed and is not required for Hostinger's built-in mail forwarding. Never commit service-account credentials or secrets.
 
 ## Website
 
-GitHub Pages: https://priyabratacare-source.github.io/CodeBihin-Email/
+https://priyabratacare-source.github.io/CodeBihin-Email/

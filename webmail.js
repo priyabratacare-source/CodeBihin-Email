@@ -181,6 +181,7 @@ $("closeCompose").addEventListener("click", () => composeDialog.close());
 $("searchInput").addEventListener("input", renderMessages);
 $("refreshButton").addEventListener("click", () => loadFolder(currentFolder));
 $("logoutButton").addEventListener("click", async () => {
+  try { await api("/api/audit/logout", { method: "POST" }); } catch {}
   await signOut(auth);
   window.location.replace("./index.html");
 });
@@ -216,6 +217,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   currentUser = user;
   $("signedInUser").textContent = user.email || "Authorised official";
+  if ((user.email || "").toLowerCase() === "admin@codebihin.in") { try { await api("/api/admin/status"); $("adminLink").hidden = false; } catch {} }
   try {
     await loadFolders();
     await loadFolder("INBOX");

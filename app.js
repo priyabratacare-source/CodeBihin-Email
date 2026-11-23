@@ -56,7 +56,5 @@ if (loginForm) {
   });
 }
 onAuthStateChanged(auth, (user) => {
-  if (user && window.location.pathname.endsWith("/index.html")) {
-    window.location.replace("./webmail.html");
-  }
+  if (user) window.location.replace("./webmail.html");
 });

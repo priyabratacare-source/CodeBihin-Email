@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123b75">
+  <meta name="description" content="CodeBihin Official shared webmail">
+  <title>Inbox | CodeBihin Email</title>
+  <link rel="stylesheet" href="webmail.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="mail-app">
+    <header class="mail-topbar">
+      <a class="brand" href="./index.html"><span class="brand-icon">C</span><span>CodeBihin<small>OFFICIAL MAIL</small></span></a>
+      <div class="top-actions">
+        <span class="connected"><i></i> Hostinger mailbox</span>
+        <span id="signedInUser" class="signed-user">Checking account…</span>
+        <button id="logoutButton" class="quiet-button">Sign out</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice" role="status" aria-live="polite">Connecting to the shared mailbox…</div>
+
+    <div class="mail-layout">
+      <aside class="mail-sidebar">
+        <button id="composeButton" class="compose-button">＋ Compose</button>
+        <div class="sidebar-label">MAILBOX</div>
+        <nav id="folderList" class="folder-list">
+          <button class="folder active" data-folder="INBOX">▣ <span>Inbox</span></button>
+        </nav>
+        <div class="shared-account">
+          <span class="shared-icon">✉</span>
+          <div><strong>Shared official inbox</strong><small>admin@codebihin.in</small></div>
+        </div>
+      </aside>
+
+      <main class="mail-main">
+        <section class="message-panel">
+          <div class="list-heading">
+            <div><span class="eyebrow">SHARED MAILBOX</span><h1 id="folderTitle">Inbox</h1></div>
+            <button id="refreshButton" class="quiet-button">↻ Refresh</button>
+          </div>
+          <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Search loaded messages"></div>
+          <div id="messageList" class="message-list"><div class="empty-state">Your messages will appear here.</div></div>
+        </section>
+
+        <section class="reader-panel" id="readerPanel">
+          <div class="reader-empty"><div class="reader-icon">✉</div><h2>Select a message</h2><p>Choose an email from your inbox to read it here.</p></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="composeDialog" class="compose-dialog">
+    <form id="composeForm" class="compose-form">
+      <div class="compose-heading"><strong>New message</strong><button type="button" id="closeCompose" class="icon-button" aria-label="Close">×</button></div>
+      <label for="composeTo">To</label><input id="composeTo" type="email" required placeholder="recipient@example.com">
+      <label for="composeSubject">Subject</label><input id="composeSubject" maxlength="200" placeholder="Subject">
+      <label for="composeText">Message</label><textarea id="composeText" rows="10" required placeholder="Write your message…"></textarea>
+      <div class="compose-footer"><span>From: admin@codebihin.in</span><button id="sendButton" class="send-button" type="submit">Send message</button></div>
+      <p id="composeMessage" class="compose-message" aria-live="polite"></p>
+    </form>
+  </dialog>
+  <script type="module" src="webmail.js"></script>
+</body>
+</html>

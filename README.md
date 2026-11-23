@@ -1,27 +1,31 @@
 # CodeBihin Email
 
-CodeBihin Email is being developed in stages, using Hostinger Email for the initial mail service.
+CodeBihin Email is an official webmail portal for a shared Hostinger mailbox.
 
-## Current free-first setup
+## Agreed first-release model
 
-- GitHub Pages: web portal
-- Firebase Authentication: CodeBihin employee/admin portal sign-in
-- Firestore: employee and role records
-- Hostinger Email: actual mailboxes and incoming email
-- Hostinger aliases and forwarders: additional addresses and optional Gmail forwarding
+- Each official signs in using their own Firebase Authentication account.
+- The authorised officials access the same Hostinger mailbox: `admin@codebihin.in`.
+- The backend connects to Hostinger using a server-side app password.
+- Officials can list folders, read messages, reply and send from the shared official address.
+- Mailbox access is granted individually through the Firebase custom claim `mailAccess: true`.
+- Hostinger DNS and the existing Hostinger Email MX records remain unchanged.
 
-**DNS stays at Hostinger.** Do not switch nameservers or MX records to Cloudflare. Do not add Cloudflare Email Routing records while Hostinger Email is receiving mail.
+## Important security
 
-This is not a standalone mailbox platform yet. The portal login does not create a Hostinger mailbox or display messages. Use Hostinger Webmail or a supported mail app to read the actual mailbox.
+Never put the Hostinger app password or Firebase service-account JSON in GitHub frontend files. They belong only in the private backend host's environment secrets. Officials must never receive the shared mailbox app password.
+
+## Repository structure
+
+- `index.html`, `app.js`, `style.css`: official sign-in page
+- `webmail.html`, `webmail.js`, `webmail.css`: shared mailbox interface
+- `api-config.js`: HTTPS backend URL, set after deployment
+- `backend/`: Node.js API using Firebase Admin, IMAP and SMTP
 
 ## Setup guide
 
-Read [docs/FREE-INBOUND-ROUTING.md](docs/FREE-INBOUND-ROUTING.md) for safe alias and forwarder setup without changing DNS.
+See [backend/README.md](backend/README.md) for deployment requirements and how to grant or revoke each official's mailbox access.
 
-## Backend
+## Hosting status
 
-The `backend/` folder is a foundation for a future API. It is not deployed and is not required for Hostinger's built-in mail forwarding. Never commit service-account credentials or secrets.
-
-## Website
-
-https://priyabratacare-source.github.io/CodeBihin-Email/
+GitHub Pages hosts only the frontend. The Node.js backend must be deployed separately to a persistent host that permits outbound IMAP and SMTP connections. It has not yet been deployed.
